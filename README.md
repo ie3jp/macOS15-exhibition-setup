@@ -166,7 +166,7 @@ MIT License
 
 ## 作者
 
-- Original (2015): [rettuce](https://github.com/rettuce)
+- Original (2015): [rettuce](https://github.com/rettuce) - [Original Gist](https://gist.github.com/rettuce/71c801881e1433c3a9de)
 - Updated for macOS 15 (2025): rettuce
 
 ## 参考リンク
