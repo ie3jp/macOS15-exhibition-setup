@@ -121,10 +121,22 @@ print_status "Screen saver password requirement disabled"
 print_section "Dock Settings"
 # =============================================================================
 
-# Position dock on left (less intrusive for exhibitions)
+# Function to add app to Dock
+add_app_to_dock() {
+    local app_path="$1"
+    if [[ -e "$app_path" ]]; then
+        defaults write com.apple.dock persistent-apps -array-add \
+            "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>$app_path</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>"
+        print_status "Added to Dock: $(basename "$app_path" .app)"
+    else
+        print_warning "App not found, skipped: $app_path"
+    fi
+}
+
+# Position dock on bottom
 echo "Configuring Dock..."
-defaults write com.apple.dock orientation -string 'left'
-print_status "Dock position: left"
+defaults write com.apple.dock orientation -string 'bottom'
+print_status "Dock position: bottom"
 
 # Auto-hide dock
 defaults write com.apple.dock autohide -bool true
@@ -139,6 +151,16 @@ print_status "Dock size minimized"
 # Don't show recent applications in Dock
 defaults write com.apple.dock show-recents -bool false
 print_status "Recent apps in Dock disabled"
+
+# Set custom Dock apps
+echo "Setting Dock applications..."
+defaults write com.apple.dock persistent-apps -array
+add_app_to_dock "/System/Applications/Finder.app"
+add_app_to_dock "/Applications/Google Chrome.app"
+add_app_to_dock "/System/Applications/System Settings.app"
+add_app_to_dock "/System/Applications/Utilities/Terminal.app"
+add_app_to_dock "/System/Applications/Utilities/Activity Monitor.app"
+print_status "Dock apps configured"
 
 # =============================================================================
 print_section "Mission Control & Spaces"
