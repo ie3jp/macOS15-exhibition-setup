@@ -50,7 +50,9 @@
 
 ### 🔧 その他
 - 自動ログイン設定
-- クラッシュレポーター無効化
+- クラッシュレポーター無効化（ユーザー / システム両方）
+- カーネルパニック / GPUパニック復帰時の "Your computer was restarted because of a problem" ダイアログ抑止
+- 起動時に `/Library/Logs/DiagnosticReports/*.panic` を自動削除する LaunchDaemon (`com.local.clear-panics`) を設置
 - ウィンドウ復元無効化
 - .DS_Store作成抑制（ネットワーク/USB）
 - AirDrop/Handoff無効化
@@ -145,6 +147,30 @@ defaults read com.apple.screensaver
 defaults read com.apple.dock
 ```
 
+### パニックダイアログ抑止の動作確認
+
+```bash
+# システム全体のクラッシュレポーター設定
+sudo defaults read /Library/Preferences/com.apple.CrashReporter
+
+# clear-panics LaunchDaemon の状態
+sudo launchctl print system/com.local.clear-panics | grep -E 'state|last exit'
+
+# 実行ログ
+cat /var/log/clear-panics.log
+```
+
+### パニック検証（任意）
+
+ダミーの panic ファイルを置いて、再起動時に自動削除されるか確認できます:
+
+```bash
+sudo touch /Library/Logs/DiagnosticReports/test.panic
+sudo reboot
+# 再起動後:
+ls /Library/Logs/DiagnosticReports/*.panic 2>/dev/null || echo "OK: cleared"
+```
+
 ## 設定のリセット
 
 元に戻す場合は、各項目をシステム設定から手動で変更するか、以下のコマンドで個別にリセット:
@@ -158,6 +184,14 @@ defaults delete com.apple.dock && killall Dock
 
 # 電源設定をリセット
 sudo pmset restoredefaults
+
+# クラッシュレポーター設定をリセット（ユーザー / システム）
+defaults delete com.apple.CrashReporter
+sudo defaults delete /Library/Preferences/com.apple.CrashReporter
+
+# clear-panics LaunchDaemon を削除
+sudo launchctl unload /Library/LaunchDaemons/com.local.clear-panics.plist
+sudo rm /Library/LaunchDaemons/com.local.clear-panics.plist
 ```
 
 ## ライセンス

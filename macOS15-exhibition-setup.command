@@ -389,13 +389,67 @@ print_status "System-wide Resume disabled"
 defaults write -g ApplePersistenceIgnoreState -bool true
 print_status "App persistence disabled"
 
-# Disable crash reporter dialog
+# --- Per-user CrashReporter ---
+# Disable crash reporter dialog (current user)
 defaults write com.apple.CrashReporter DialogType none
-print_status "Crash reporter dialog disabled"
+print_status "Crash reporter dialog disabled (user)"
 
-# Disable submitting crash reports
+# Disable submitting crash reports (current user)
 defaults write com.apple.CrashReporter UseUNC 1
-print_status "Crash report submission disabled"
+print_status "Crash report submission disabled (user)"
+
+# --- System-wide CrashReporter ---
+# Critical for 24/7 unattended operation: suppresses the system-level
+# "Your computer was restarted because of a problem" dialog that appears
+# after kernel panic / GPU panic recovery. The per-user setting alone
+# does not cover boot-time / loginwindow-time dialogs.
+sudo defaults write /Library/Preferences/com.apple.CrashReporter DialogType none
+print_status "Crash reporter dialog disabled (system-wide)"
+
+sudo defaults write /Library/Preferences/com.apple.CrashReporter UseUNC -int 1
+print_status "Crash report submission disabled (system-wide)"
+
+# --- Auto-clear stale panic reports on boot ---
+# After a kernel/GPU panic, macOS retains *.panic files in
+# /Library/Logs/DiagnosticReports/ and shows a Problem Reporter dialog at
+# next login referencing them. For unattended kiosks this dialog blocks
+# the screen until a human dismisses it. We install a system LaunchDaemon
+# that, at every boot, deletes those files and kills any Problem Reporter
+# already on screen. RunAtLoad=true also fires it immediately on install.
+echo "Installing clear-panics LaunchDaemon..."
+
+CLEAR_PANICS_LABEL="com.local.clear-panics"
+CLEAR_PANICS_PLIST="/Library/LaunchDaemons/${CLEAR_PANICS_LABEL}.plist"
+CLEAR_PANICS_SRC="/tmp/${CLEAR_PANICS_LABEL}.plist"
+
+cat > "$CLEAR_PANICS_SRC" <<'CLEAR_PANICS_EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.local.clear-panics</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>-c</string>
+        <string>/bin/rm -f /Library/Logs/DiagnosticReports/*.panic; /usr/bin/killall -9 "Problem Reporter" 2&gt;/dev/null; exit 0</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/var/log/clear-panics.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/clear-panics.log</string>
+</dict>
+</plist>
+CLEAR_PANICS_EOF
+
+sudo launchctl unload "$CLEAR_PANICS_PLIST" 2>/dev/null || true
+sudo install -o root -g wheel -m 644 "$CLEAR_PANICS_SRC" "$CLEAR_PANICS_PLIST"
+sudo launchctl load -w "$CLEAR_PANICS_PLIST"
+rm -f "$CLEAR_PANICS_SRC"
+print_status "clear-panics LaunchDaemon installed at $CLEAR_PANICS_PLIST"
 
 # =============================================================================
 print_section "Additional Exhibition Settings"
